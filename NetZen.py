@@ -8,6 +8,9 @@ import sys
 import json
 import paramiko
 
+# Evitar fallo en sistemas donde CREATE_NO_WINDOW no está disponible
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 # Rutas y archivos
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
@@ -142,7 +145,7 @@ def obtener_hostname(ip):
         result = subprocess.run([
             plink_path, "-telnet", ip, "-P", "23", "-batch"
         ], input=comandos_hostname.encode(), stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+        stderr=subprocess.PIPE, timeout=15, creationflags=CREATE_NO_WINDOW)
         salida = result.stdout.decode("utf-8", errors="ignore")
         if "hostname" in salida.lower():
             conexion_cache[ip] = "telnet"
@@ -187,7 +190,7 @@ def probar_conexion():
             resultado = subprocess.run([
                 plink_path, "-telnet", ip, "-P", "23", "-batch"
             ], input=f"{usuario}\n{contrasena}\nexit\n".encode(), stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+            stderr=subprocess.PIPE, timeout=10, creationflags=CREATE_NO_WINDOW)
             if "login" in resultado.stdout.decode("utf-8", errors="ignore").lower() or resultado.returncode != 0:
                 raise Exception("Fallo Telnet")
             log(f"✅ Telnet exitoso con {ip}")
@@ -239,7 +242,7 @@ def generar_reportes():
                     resultado = subprocess.run([
                         plink_path, "-telnet", ip, "-P", "23", "-batch"
                     ], input=entrada.encode(), stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, timeout=20, creationflags=subprocess.CREATE_NO_WINDOW)
+                    stderr=subprocess.PIPE, timeout=20, creationflags=CREATE_NO_WINDOW)
                     salida = resultado.stdout.decode("utf-8", errors="ignore")
                 except Exception as e:
                     log(f"❌ Error TELNET al ejecutar comando: {str(e)}")
