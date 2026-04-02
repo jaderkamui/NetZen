@@ -1,5 +1,5 @@
 # 🔧 NetZen – Automatización de Reportes Cisco
-
+![NetZen Banner](./assets/dashboard.png)
 
 ## 📌 Descripción
 
@@ -141,7 +141,8 @@ Ingresar IPs → Credenciales → Selección comandos → Test conexión → Gen
 
 ## 📸 Capturas
 
-*(Agrega aquí screenshots de tu app para mejorar impacto visual)*
+![NetZen Banner](./assets/dashboard.png)
+![NetZen Banner](./assets/help.png)
 
 ---
 
