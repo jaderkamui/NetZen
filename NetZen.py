@@ -27,13 +27,13 @@ comandos = {
     "show run": "RUNNING CONFIG"
 }
 
-# Variables globales para usuario y contraseña
+# Variables globales
 usuario = ""
 contrasena = ""
 checkbox_comandos = {}
 conexion_cache = {}
 
-# Funciones para guardar y cargar usuario en cache local (json)
+# Guardar usuario en cache
 def guardar_usuario_cache():
     with open(sesion_file, "w") as f:
         json.dump({"usuario": usuario}, f)
@@ -45,7 +45,7 @@ def cargar_usuario_cache():
             return data.get("usuario", "")
     return ""
 
-# Ventana emergente para ingresar credenciales
+# Popup credenciales
 def pedir_credenciales_popup():
     global usuario, contrasena
     popup = ctk.CTkToplevel(app)
@@ -82,7 +82,7 @@ def pedir_credenciales_popup():
 
     ctk.CTkButton(popup, text="Aceptar", command=guardar_y_cerrar).pack(pady=10)
 
-# Actualizar estado de botones según si hay credenciales
+# Actualizar botones
 def actualizar_botones_estado():
     if usuario and contrasena:
         btn_probar.configure(state="normal")
@@ -91,7 +91,7 @@ def actualizar_botones_estado():
         btn_probar.configure(state="disabled")
         btn_generar.configure(state="disabled")
 
-# Función para agregar líneas en el log
+# Log visual
 def log(mensaje):
     log_output.configure(state="normal")
     log_output.insert("end", mensaje + "\n")
@@ -99,12 +99,12 @@ def log(mensaje):
     log_output.configure(state="disabled")
     app.update()
 
-# Abrir carpeta raíz de reportes
+# Abrir carpeta raíz
 def abrir_carpeta():
     os.makedirs(ruta_base, exist_ok=True)
     os.startfile(ruta_base)
 
-# Cargar IPs desde archivo txt
+# Cargar IPs desde txt
 def cargar_ips_txt():
     archivo = filedialog.askopenfilename(filetypes=[("Archivos de texto", "*.txt")])
     if archivo:
@@ -113,7 +113,7 @@ def cargar_ips_txt():
             entry_ips.delete("1.0", "end")
             entry_ips.insert("1.0", contenido)
 
-# Ejecutar comando via SSH con Paramiko
+# Ejecutar comando SSH
 def ejecutar_comando_ssh(ip, comando):
     salida = ""
     try:
@@ -132,12 +132,12 @@ def ejecutar_comando_ssh(ip, comando):
         log(f"❌ Error SSH con {ip}: {str(e)}")
     return salida
 
-# Obtener hostname del dispositivo (Telnet o SSH)
+# Obtener hostname
 def obtener_hostname(ip):
     global conexion_cache
     comandos_hostname = f"{usuario}\n{contrasena}\nterminal length 0\nshow run | include hostname\nexit\n"
 
-    # Intento Telnet con Plink
+    # Telnet
     try:
         result = subprocess.run([
             plink_path, "-telnet", ip, "-P", "23", "-batch"
@@ -154,7 +154,7 @@ def obtener_hostname(ip):
     except Exception as e:
         log(f"⚠️ Error TELNET con {ip}: {str(e)}")
 
-    # Intento SSH
+    # SSH
     try:
         salida_ssh = ejecutar_comando_ssh(ip, "show run | include hostname")
         if "hostname" in salida_ssh.lower():
@@ -167,10 +167,10 @@ def obtener_hostname(ip):
     except Exception as e:
         log(f"⚠️ Error SSH con {ip}: {str(e)}")
 
-    log(f"❌ No se pudo obtener el hostname de {ip}")
-    return f"{ip.replace('.', '_')}_SIN_HOSTNAME"
+    log(f"❌ No se pudo obtener hostname de {ip}, se usará la IP.")
+    return ip.replace(".", "_")
 
-# Probar conexión para cada IP
+# Probar conexión
 def probar_conexion():
     if not usuario or not contrasena:
         messagebox.showwarning("Faltan Credenciales", "Debe ingresar usuario y contraseña antes de probar conexión.")
@@ -194,7 +194,7 @@ def probar_conexion():
             conexion_cache[ip] = "telnet"
             continue
         except:
-            log(f"⚠️ Telnet no disponible para {ip}, intentando SSH...")
+            log(f"⚠️ Telnet no disponible en {ip}, probando SSH...")
 
         try:
             cliente = paramiko.SSHClient()
@@ -206,7 +206,7 @@ def probar_conexion():
         except Exception as e:
             log(f"❌ Fallo conexión con {ip}: {str(e)}")
 
-# Generar reportes para las IPs y comandos seleccionados
+# Generar reportes
 def generar_reportes():
     if not usuario or not contrasena:
         messagebox.showwarning("Faltan Credenciales", "Debe ingresar usuario y contraseña antes de generar reportes.")
@@ -225,7 +225,10 @@ def generar_reportes():
             continue
 
         log(f"📡 Generando reportes para {ip}...")
-        hostname = obtener_hostname(ip)
+        hostname = obtener_hostname(ip).strip()
+        if not hostname:
+            hostname = ip.replace(".", "_")
+
         carpeta_host = os.path.join(ruta_base, hostname)
         os.makedirs(carpeta_host, exist_ok=True)
 
@@ -242,7 +245,7 @@ def generar_reportes():
                     stderr=subprocess.PIPE, timeout=20, creationflags=subprocess.CREATE_NO_WINDOW)
                     salida = resultado.stdout.decode("utf-8", errors="ignore")
                 except Exception as e:
-                    log(f"❌ Error TELNET al ejecutar comando: {str(e)}")
+                    log(f"❌ Error TELNET en {ip}: {str(e)}")
 
             elif conexion_cache.get(ip) == "ssh":
                 salida = ejecutar_comando_ssh(ip, cmd)
@@ -254,11 +257,11 @@ def generar_reportes():
                     f.write(salida)
                 log(f"✅ Guardado: {nombre_archivo}")
             else:
-                log(f"⚠️ No se obtuvo salida para: {comandos[cmd]} en {hostname}")
+                log(f"⚠️ No se obtuvo salida para {comandos[cmd]} en {hostname}")
 
     log("✔️ Proceso finalizado.")
 
-# Ventana de ayuda con información y comandos
+# Ayuda
 def mostrar_ayuda():
     ayuda = ctk.CTkToplevel(app)
     ayuda.title("Información y Ayuda")
@@ -268,30 +271,25 @@ def mostrar_ayuda():
 
     texto_ayuda = """
 Netzen - Reportes Automáticos Cisco
-Versión: 2.7
+Versión: 2.8
 Desarrollado por: Jader Muñoz
 Contacto: jmunozra@sonda.com
 
-Ayuda memoria de comandos:
-
+Comandos respaldados:
 - show run  ➜  [HOSTNAME] RUNNING CONFIG.txt
 - show log  ➜  [HOSTNAME] LOG.txt
 - show int transceiver detail  ➜  [HOSTNAME] ATENUACIONES.txt
 - show int counters errors     ➜  [HOSTNAME] COUNTER ERROR.txt
 
-Ubicación de reportes:
+Ubicación:
 C:\\reportes cisco\\[HOSTNAME]\\
-
-Este programa conecta vía Telnet o SSH a dispositivos Cisco
-y guarda automáticamente los reportes solicitados.
 """
     texto_box = ctk.CTkTextbox(ayuda, wrap="word")
     texto_box.insert("1.0", texto_ayuda.strip())
     texto_box.configure(state="disabled")
     texto_box.pack(padx=20, pady=20, expand=True, fill="both")
 
-# --------------------- Inicio interfaz gráfica ----------------------
-
+# Interfaz gráfica
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -306,7 +304,7 @@ frame_main.pack(padx=20, pady=20, fill="both", expand=True)
 # Logo y título
 try:
     logo_img = Image.open(logo_path)
-    logo = ctk.CTkImage(logo_img, size=(220, 180))  # tamaño ajustado para buena visualización
+    logo = ctk.CTkImage(logo_img, size=(220, 180))
 except Exception:
     logo = None
 
@@ -320,23 +318,24 @@ if logo:
 titulo_label = ctk.CTkLabel(frame_logo, text="Netzen - Reportes Automáticos Cisco", font=ctk.CTkFont(size=24, weight="bold"))
 titulo_label.pack(side="left", padx=20)
 
-# Textbox para ingresar IPs
+# Textbox IPs
 entry_ips = ctk.CTkTextbox(frame_main, height=100)
 entry_ips.pack(pady=10, fill="x", padx=40)
 entry_ips.insert("1.0", "192.168.1.1\n192.168.1.2")
 
-# Botón para cargar IPs desde archivo
 btn_cargar_ips = ctk.CTkButton(frame_main, text="📂 Cargar IPs desde archivo .txt", command=cargar_ips_txt)
 btn_cargar_ips.pack(pady=5)
 
-# Checkbox para comandos
+# Checkbox comandos
 frame_comandos = ctk.CTkFrame(frame_main)
 frame_comandos.pack(pady=5)
 for cmd, nombre in comandos.items():
-    checkbox_comandos[cmd] = ctk.CTkCheckBox(frame_comandos, text=nombre)
-    checkbox_comandos[cmd].pack(side="left", padx=10)
+    var = ctk.IntVar(value=1)
+    checkbox_comandos[cmd] = var
+    chk = ctk.CTkCheckBox(frame_comandos, text=nombre, variable=var)
+    chk.pack(side="left", padx=10)
 
-# Botones de acciones
+# Botones
 btn_frame = ctk.CTkFrame(frame_main)
 btn_frame.pack(pady=10)
 
@@ -355,17 +354,17 @@ btn_generar.pack(side="left", padx=5)
 btn_ayuda = ctk.CTkButton(btn_frame, text="❓ Ayuda", command=mostrar_ayuda)
 btn_ayuda.pack(side="left", padx=5)
 
-# Log de salida
+# Log
 log_output = ctk.CTkTextbox(frame_main, height=250, state="disabled")
 log_output.pack(padx=40, pady=(10, 40), fill="both", expand=True)
 
-# Label con créditos al pie
+# Créditos
 creditos = ctk.CTkLabel(app, text="Desarrollado por Jader Muñoz 2025", font=ctk.CTkFont(size=12, slant="italic"))
 creditos.pack(pady=(0, 5))
 
-# Inicializar estado botones según credenciales cargadas
+# Inicializar
 usuario = cargar_usuario_cache()
-contrasena = ""  # No guardamos contraseña en cache por seguridad
+contrasena = ""
 actualizar_botones_estado()
 
 app.mainloop()

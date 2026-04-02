@@ -1,0 +1,21 @@
+/build
+/dist
+/NetZen
+/node_modules
+/.vscode
+/.idea
+/.DS_Store
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.env
+almacenamiento.ico
+comandos de cisco.txt
+host.py
+programa.py
+programa.spec
+respaldo_cisco.py
+sonda_logo.png
+test.py
